@@ -1,7 +1,6 @@
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
-const config = require('config');
 const logger = require('./utils/logger');
 const dbManager = require('./utils/database');
 const syncService = require('./services/syncService');
@@ -473,9 +472,18 @@ async function parseXMLData(xmlString) {
 const app = express();
 const server = http.createServer(app);
 
-// Get Socket.io configuration from config file
-const socketConfig = config.has('socketio') ? config.get('socketio') : {};
-const fullSyncConfig = config.has('fullSync') ? config.get('fullSync') : { batchSize: 1000 };
+// Socket.io configuration with defaults
+const socketConfig = {
+    pingTimeout: parseInt(process.env.SOCKETIO_PING_TIMEOUT) || 60000,
+    pingInterval: parseInt(process.env.SOCKETIO_PING_INTERVAL) || 25000,
+    upgradeTimeout: parseInt(process.env.SOCKETIO_UPGRADE_TIMEOUT) || 10000,
+    maxHttpBufferSize: parseInt(process.env.SOCKETIO_MAX_BUFFER_SIZE) || 10000000
+};
+const fullSyncConfig = {
+    batchSize: parseInt(process.env.FULL_SYNC_BATCH_SIZE) || 1000,
+    timeout: parseInt(process.env.FULL_SYNC_TIMEOUT) || 300000,
+    retryAttempts: parseInt(process.env.FULL_SYNC_RETRY_ATTEMPTS) || 3
+};
 
 const io = socketIo(server, {
     cors: {
@@ -1577,8 +1585,8 @@ io.on('connection', (socket) => {
 });
 
 // Server startup
-const PORT = config.get('server.port');
-const HOST = config.get('server.host');
+const PORT = parseInt(process.env.PORT) || 3031;
+const HOST = process.env.HOST || '0.0.0.0';
 
 server.listen(PORT, HOST, async () => {
     logger.info(`Server started on ${HOST}:${PORT}`);

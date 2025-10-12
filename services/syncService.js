@@ -1,7 +1,6 @@
 const logger = require('../utils/logger');
 const dbManager = require('../utils/database');
 const Joi = require('joi');
-const config = require('config');
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -22,14 +21,18 @@ class SyncService {
         this.csvUploadQueue = new Map(); // Track CSV uploads per machine/table
     }
 
-    // Get WHERE fields for a specific table from config
+    // Get WHERE fields for a specific table
     getWhereFields(tableName) {
-        const tableConfig = config.get(`tables.${tableName}`);
-        if (tableConfig && tableConfig.whereFields) {
-            return tableConfig.whereFields;
-        }
-        // Default fallback to ID if no specific config
-        return ['ID'];
+        // Table-specific WHERE fields mapping
+        const tableWhereFields = {
+            'SalesDetail': ['InvoiceNo', 'StockId'],
+            'StockItems': ['StockId'],
+            'Sales': ['InvoiceNo', 'TransactionDate'],
+            'MenuItem': ['ItemCode'],
+            'SubMenuLinkDetail': ['ItemCode', 'SubItemCode']
+        };
+        
+        return tableWhereFields[tableName] || ['ID'];
     }
 
     // Build WHERE condition based on table configuration

@@ -1,0 +1,33 @@
+{
+  "mysql": {
+    "host": "localhost",
+    "user": "root",
+    "password": "123123",
+    "port": 3306,
+    "connectionLimit": 10,
+    "multipleStatements": true,
+    "localInfile": true
+  },
+  "machineMapping": {
+    "DESKTOP-AT2M247": {
+      "database": "store1",
+      "tables": ["SalesDetail", "StockItems", "Sales", "MenuItem", "SubMenuLinkDetail"],
+      "type": "hospitality"
+    },
+    "DESKTOP-AT2M24": {
+      "database": "store2", 
+      "tables": ["SalesDetail", "StockItems", "Sales", "MenuItem", "SubMenuLinkDetail"],
+      "type": "hospitality"
+    },
+    "RETAIL-STORE-01": {
+      "database": "retail_store1",
+      "tables": ["SalesDetail", "StockItems", "Sales"],
+      "type": "retail"
+    },
+    "RETAIL-STORE-02": {
+      "database": "retail_store2",
+      "tables": ["SalesDetail", "StockItems", "Sales"],
+      "type": "retail"
+    }
+  }
+} 

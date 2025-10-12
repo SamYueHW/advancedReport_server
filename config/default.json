@@ -1,0 +1,50 @@
+{
+  "server": {
+    "port": 3031,
+    "host": "0.0.0.0"
+  },
+  "logging": {
+    "level": "info",
+    "file": "./logs/server.log",
+    "maxSize": "10m",
+    "maxFiles": 5
+  },
+  "sync": {
+    "maxRetries": 3,
+    "retryDelay": 1000,
+    "batchSize": 100
+  },
+  "socketio": {
+    "pingTimeout": 60000,
+    "pingInterval": 25000,
+    "upgradeTimeout": 10000,
+    "maxHttpBufferSize": 10000000
+  },
+  "fullSync": {
+    "batchSize": 1000,
+    "timeout": 300000,
+    "retryAttempts": 3
+  },
+  "tables": {
+    "SalesDetail": {
+      "whereFields": ["InvoiceNo", "StockId"],
+      "description": "For retail: Use InvoiceNo and StockId for WHERE conditions in UPDATE/DELETE operations"
+    },
+    "StockItems": {
+      "whereFields": ["StockId"],
+      "description": "For retail: Use StockId (corresponds to itemcode) for WHERE conditions in UPDATE/DELETE operations"
+    },
+    "Sales": {
+      "whereFields": ["InvoiceNo", "TransactionDate"],
+      "description": "For retail: Use InvoiceNo and TransactionDate for WHERE conditions in UPDATE/DELETE operations"
+    },
+    "MenuItem": {
+      "whereFields": ["ItemCode"],
+      "description": "For hospitality: Use ItemCode for WHERE conditions in UPDATE/DELETE operations"
+    },
+    "SubMenuLinkDetail": {
+      "whereFields": ["ItemCode", "SubItemCode"],
+      "description": "For hospitality: Use ItemCode and SubItemCode for WHERE conditions in UPDATE/DELETE operations"
+    }
+  }
+} 

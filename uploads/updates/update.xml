@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<item>
+  <version>1.0.4</version>
+  <url>http://localhost:3031/api/updates/download/SyncDBClient.exe</url>
+  <mandatory mode="2">true</mandatory>
+  <checksum algorithm="SHA256">82D691B6606C876570BE7293563ADC08434E939F6935F04460FF5AEA2682AE8A</checksum>
+</item>

@@ -1,0 +1,34 @@
+{
+  "name": "syncdb-server",
+  "version": "1.0.0",
+  "description": "SyncDB Server for real-time database synchronization",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "database",
+    "sync",
+    "socketio",
+    "nodejs"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "config": "^3.3.9",
+    "csv-parser": "^3.2.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "joi": "^17.9.2",
+    "multer": "^2.0.2",
+    "mysql2": "^3.6.0",
+    "socket.io": "^4.7.2",
+    "winston": "^3.10.0",
+    "xml2js": "^0.6.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

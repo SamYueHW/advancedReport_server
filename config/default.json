@@ -45,6 +45,17 @@
     "SubMenuLinkDetail": {
       "whereFields": ["ItemCode", "SubItemCode"],
       "description": "For hospitality: Use ItemCode and SubItemCode for WHERE conditions in UPDATE/DELETE operations"
+    },
+    "PaymentReceived": {
+      "whereFields": {
+        "retail": ["InvoiceNo", "Id"],
+        "hospitality": ["OrderNo", "Id"]
+      },
+      "description": "For retail: Use InvoiceNo and Id. For hospitality: Use OrderNo and Id for WHERE conditions in UPDATE/DELETE operations"
+    },
+    "Payment": {
+      "whereFields": ["Payment"],
+      "description": "For both retail and hospitality: Use Payment for WHERE conditions in UPDATE/DELETE operations"
     }
   }
 } 

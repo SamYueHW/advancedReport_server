@@ -54,6 +54,15 @@ class DatabaseManager {
         return mapping.database;
     }
 
+    // Get database type (retail/hospitality) by app ID
+    getDatabaseTypeByMachine(appId) {
+        const mapping = dbConfig.machineMapping[appId];
+        if (!mapping) {
+            throw new Error(`App ID ${appId} not found in configuration`);
+        }
+        return mapping.type || 'retail'; // Default to retail if not specified
+    }
+
     // Execute SQL query
     async executeQuery(database, query, parameters = []) {
         try {

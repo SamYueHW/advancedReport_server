@@ -7,7 +7,7 @@ const path = require('path');
 // Validation schema for sync data
 const syncDataSchema = Joi.object({
     MachineName: Joi.string().required(),
-    TableName: Joi.string().valid('SalesDetail', 'StockItems', 'MenuItem', 'SubMenuLinkDetail', 'Sales').required(),
+    TableName: Joi.string().valid('SalesDetail', 'StockItems', 'MenuItem', 'SubMenuLinkDetail', 'Sales', 'PaymentReceived', 'Payment').required(),
     Operation: Joi.string().valid('INSERT', 'UPDATE', 'DELETE', 'SCHEMA_CHANGE').required(),
     Data: Joi.object().required(),
     Timestamp: Joi.date().required(),
@@ -22,22 +22,33 @@ class SyncService {
     }
 
     // Get WHERE fields for a specific table
-    getWhereFields(tableName) {
+    getWhereFields(tableName, databaseType = null) {
         // Table-specific WHERE fields mapping
         const tableWhereFields = {
             'SalesDetail': ['InvoiceNo', 'StockId'],
             'StockItems': ['StockId'],
             'Sales': ['InvoiceNo', 'TransactionDate'],
             'MenuItem': ['ItemCode'],
-            'SubMenuLinkDetail': ['ItemCode', 'SubItemCode']
+            'SubMenuLinkDetail': ['ItemCode', 'SubItemCode'],
+            'Payment': ['Payment']
         };
+        
+        // PaymentReceived has different keys for retail vs hospitality
+        if (tableName === 'PaymentReceived') {
+            if (databaseType === 'hospitality') {
+                return ['OrderNo', 'Id'];
+            } else {
+                // Default to retail
+                return ['InvoiceNo', 'Id'];
+            }
+        }
         
         return tableWhereFields[tableName] || ['ID'];
     }
 
     // Build WHERE condition based on table configuration
-    buildWhereCondition(tableName, data, isOldData = false) {
-        const whereFields = this.getWhereFields(tableName);
+    buildWhereCondition(tableName, data, isOldData = false, databaseType = null) {
+        const whereFields = this.getWhereFields(tableName, databaseType);
         const whereCondition = {};
         
         // Extract data source (for UPDATE operations with new/old data)
@@ -85,9 +96,9 @@ class SyncService {
         try {
             // Validate input data
             const validatedData = this.validateSyncData(syncData);
-            const { MachineName, TableName, Operation, Data, SyncId } = validatedData;
+            const { MachineName, TableName, Operation, Data, SyncId, DatabaseType } = validatedData;
 
-            logger.info(`Processing sync data: ${SyncId} - ${MachineName}/${TableName}/${Operation}`);
+            logger.info(`Processing sync data: ${SyncId} - ${MachineName}/${TableName}/${Operation} (${DatabaseType || 'unknown'})`);
 
             // Check if already processing this sync ID
             if (this.processingQueue.has(SyncId)) {
@@ -108,10 +119,10 @@ class SyncService {
                         result = await this.handleInsert(database, TableName, Data);
                         break;
                     case 'UPDATE':
-                        result = await this.handleUpdate(database, TableName, Data);
+                        result = await this.handleUpdate(database, TableName, Data, DatabaseType);
                         break;
                     case 'DELETE':
-                        result = await this.handleDelete(database, TableName, Data);
+                        result = await this.handleDelete(database, TableName, Data, DatabaseType);
                         break;
                     case 'SCHEMA_CHANGE':
                         // Schema change functionality has been removed
@@ -195,7 +206,7 @@ class SyncService {
     }
 
     // Handle UPDATE operation
-    async handleUpdate(database, TableName, Data) {
+    async handleUpdate(database, TableName, Data, databaseType = null) {
         try {
             // Check if table exists first
             const tableExists = await dbManager.tableExists(database, TableName);
@@ -204,11 +215,11 @@ class SyncService {
             }
 
             // Use new WHERE condition building logic
-            const whereCondition = this.buildWhereCondition(TableName, Data, true); // true for old data
+            const whereCondition = this.buildWhereCondition(TableName, Data, true, databaseType); // true for old data
             const updateData = this.getUpdateData(TableName, Data);
             
             if (Object.keys(whereCondition).length === 0) {
-                throw new Error(`WHERE condition is required for UPDATE operation on ${TableName}. Required fields: ${this.getWhereFields(TableName).join(', ')}`);
+                throw new Error(`WHERE condition is required for UPDATE operation on ${TableName}. Required fields: ${this.getWhereFields(TableName, databaseType).join(', ')}`);
             }
             
             if (Object.keys(updateData).length === 0) {
@@ -268,7 +279,7 @@ class SyncService {
     }
 
     // Handle DELETE operation
-    async handleDelete(database, TableName, Data) {
+    async handleDelete(database, TableName, Data, databaseType = null) {
         try {
             // Check if table exists first
             const tableExists = await dbManager.tableExists(database, TableName);
@@ -277,10 +288,10 @@ class SyncService {
             }
 
             // Use new WHERE condition building logic
-            const whereCondition = this.buildWhereCondition(TableName, Data, false);
+            const whereCondition = this.buildWhereCondition(TableName, Data, false, databaseType);
             
             if (Object.keys(whereCondition).length === 0) {
-                throw new Error(`WHERE condition is required for DELETE operation on ${TableName}. Required fields: ${this.getWhereFields(TableName).join(', ')}`);
+                throw new Error(`WHERE condition is required for DELETE operation on ${TableName}. Required fields: ${this.getWhereFields(TableName, databaseType).join(', ')}`);
             }
 
             const whereClause = Object.keys(whereCondition)
@@ -497,7 +508,15 @@ class SyncService {
                     'ALTER TABLE `Sales` ADD INDEX idx_orderdate_orderno (OrderDate, OrderNo)',  // 新增复合索引
                     // 删除以下冗余索引：
                     // 'ALTER TABLE `Sales` ADD INDEX idx_orderdate (OrderDate)'  // 已在上方添加
-                ]
+                ],
+                'PaymentReceived': [
+                    'ALTER TABLE `PaymentReceived` ADD PRIMARY KEY (OrderNo,Id)',  // 主键索引
+
+                    
+                ],
+                'Payment': [
+                    'ALTER TABLE `Payment` ADD PRIMARY KEY (Payment)',  // 主键索引
+                ]   
             };
             if (hospitalityIndexes[tableName]) {
                 logger.info(`Adding hospitality-specific indexes for table ${tableName}`);
@@ -552,6 +571,16 @@ class SyncService {
                     // -- 'ALTER TABLE `Sales` ADD INDEX idx_invoiceno (InvoiceNo)',  -- 与主键重复
                     // -- 'ALTER TABLE `Sales` ADD INDEX idx_invoiceno_transactiondate (InvoiceNo, TransactionDate)',  -- 顺序不佳
                 ],
+                'PaymentReceived': [
+                    'ALTER TABLE `PaymentReceived` ADD PRIMARY KEY (InvoiceNo, Id)',  // 主键索引
+
+                    
+                ],
+                'Payment': [
+                    'ALTER TABLE `Payment` ADD PRIMARY KEY (Payment)',  // 主键索引
+
+                    
+                ]
             };
 
             if (retailIndexes[tableName]) {
@@ -1571,15 +1600,15 @@ class SyncService {
                     -- Handle SQL Server default dates and invalid dates
                     WHEN ${csvVar} LIKE '1899-12-30%' OR ${csvVar} = '1900-01-01T00:00:00.000Z' OR ${csvVar} = '0000-00-00' THEN NULL
                     
+                    -- Handle standard datetime format (YYYY-MM-DD HH:MM:SS) - CHECK THIS FIRST before date-only format
+                    WHEN ${csvVar} REGEXP '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}' THEN 
+                        STR_TO_DATE(${csvVar}, '%Y-%m-%d %H:%i:%s')
+                    
                     -- Handle ISO datetime format (YYYY-MM-DDTHH:MM:SS)
                     WHEN ${csvVar} REGEXP '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}' THEN 
                         STR_TO_DATE(SUBSTRING(${csvVar}, 1, 19), '%Y-%m-%dT%H:%i:%s')
                     
-                    -- Handle standard datetime format (YYYY-MM-DD HH:MM:SS)
-                    WHEN ${csvVar} REGEXP '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}' THEN 
-                        STR_TO_DATE(${csvVar}, '%Y-%m-%d %H:%i:%s')
-                    
-                    -- Handle date only format (YYYY-MM-DD)
+                    -- Handle date only format (YYYY-MM-DD) - CHECK THIS LAST
                     WHEN ${csvVar} REGEXP '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN 
                         STR_TO_DATE(${csvVar}, '%Y-%m-%d')
                     

@@ -11,22 +11,22 @@
   "machineMapping": {
     "DESKTOP-AT2M247": {
       "database": "store1",
-      "tables": ["SalesDetail", "StockItems", "Sales", "MenuItem", "SubMenuLinkDetail"],
+      "tables": ["SalesDetail", "StockItems", "Sales", "MenuItem", "SubMenuLinkDetail", "PaymentReceived", "Payment"],
       "type": "hospitality"
     },
     "DESKTOP-AT2M24": {
       "database": "store2", 
-      "tables": ["SalesDetail", "StockItems", "Sales", "MenuItem", "SubMenuLinkDetail"],
+      "tables": ["SalesDetail", "StockItems", "Sales", "MenuItem", "SubMenuLinkDetail", "PaymentReceived", "Payment"],
       "type": "hospitality"
     },
     "RETAIL-STORE-01": {
       "database": "retail_store1",
-      "tables": ["SalesDetail", "StockItems", "Sales"],
+      "tables": ["SalesDetail", "StockItems", "Sales", "PaymentReceived", "Payment"],
       "type": "retail"
     },
     "RETAIL-STORE-02": {
       "database": "retail_store2",
-      "tables": ["SalesDetail", "StockItems", "Sales"],
+      "tables": ["SalesDetail", "StockItems", "Sales", "PaymentReceived", "Payment"],
       "type": "retail"
     }
   }

@@ -177,7 +177,10 @@ async function executeAdvancedSyncOperation(database, tableName, operation, data
         if (!parsedData || typeof parsedData !== 'object') {
             throw new Error('Invalid data format for sync operation');
         }
-        const businessType = data.businessType; 
+        
+        // Don't override businessType parameter - it's already passed in correctly
+        // const businessType = data.businessType; // REMOVED - this was shadowing the parameter
+        
         switch (operation.toUpperCase()) {
             case 'INSERT':
                 // 构建INSERT语句，使用列名和值分别指定
@@ -204,8 +207,11 @@ async function executeAdvancedSyncOperation(database, tableName, operation, data
                 if (tableName === 'SalesDetail') {
                     if (businessType === 'hospitality') {
                         // Hospitality: SalesDetail表使用OrderNo + ItemCode作为联合WHERE条件
-                        if (!parsedData.OrderNo || !parsedData.ItemCode) {
-                            throw new Error('No OrderNo or ItemCode found for UPDATE operation on SalesDetail (Hospitality)');
+                        if (!('OrderNo' in parsedData) && !('old_OrderNo' in parsedData)) {
+                            throw new Error('No OrderNo or old_OrderNo found for UPDATE operation on SalesDetail (Hospitality)');
+                        }
+                        if (!('ItemCode' in parsedData) && !('old_ItemCode' in parsedData)) {
+                            throw new Error('No ItemCode or old_ItemCode found for UPDATE operation on SalesDetail (Hospitality)');
                         }
                         whereFields = ['OrderNo', 'ItemCode'];
                         whereValues = [
@@ -214,8 +220,11 @@ async function executeAdvancedSyncOperation(database, tableName, operation, data
                         ];
                     } else if (businessType === 'retail') {
                         // Retail: SalesDetail表使用InvoiceNo + StockId作为联合WHERE条件
-                        if (!parsedData.InvoiceNo || !parsedData.StockId) {
-                            throw new Error('No InvoiceNo or StockId found for UPDATE operation on SalesDetail (Retail)');
+                        if (!('InvoiceNo' in parsedData) && !('old_InvoiceNo' in parsedData)) {
+                            throw new Error('No InvoiceNo or old_InvoiceNo found for UPDATE operation on SalesDetail (Retail)');
+                        }
+                        if (!('StockId' in parsedData) && !('old_StockId' in parsedData)) {
+                            throw new Error('No StockId or old_StockId found for UPDATE operation on SalesDetail (Retail)');
                         }
                         whereFields = ['InvoiceNo', 'StockId'];
                         whereValues = [
@@ -226,24 +235,24 @@ async function executeAdvancedSyncOperation(database, tableName, operation, data
                 } else if (tableName === 'Sales') {
                     if (businessType === 'hospitality') {
                         // Hospitality: Sales表使用OrderNo作为WHERE条件
-                        if (!parsedData.OrderNo) {
-                            throw new Error('No OrderNo found for UPDATE operation on Sales (Hospitality)');
+                        if (!('OrderNo' in parsedData) && !('old_OrderNo' in parsedData)) {
+                            throw new Error('No OrderNo or old_OrderNo found for UPDATE operation on Sales (Hospitality)');
                         }
                         whereFields = ['OrderNo'];
                         whereValues = [parsedData.old_OrderNo || parsedData.OrderNo];
                     } else if (businessType === 'retail') {
                         // Retail: Sales表使用InvoiceNo作为WHERE条件
-                        if (!parsedData.InvoiceNo) {
-                            throw new Error('No InvoiceNo found for UPDATE operation on Sales (Retail)');
+                        if (!('InvoiceNo' in parsedData) && !('old_InvoiceNo' in parsedData)) {
+                            throw new Error('No InvoiceNo or old_InvoiceNo found for UPDATE operation on Sales (Retail)');
                         }
                         whereFields = ['InvoiceNo'];
                         whereValues = [parsedData.old_InvoiceNo || parsedData.InvoiceNo];
                     } else {
                         // 默认情况：尝试使用InvoiceNo，如果没有则使用OrderNo
-                        if (parsedData.InvoiceNo || parsedData.old_InvoiceNo) {
+                        if (('InvoiceNo' in parsedData) || ('old_InvoiceNo' in parsedData)) {
                             whereFields = ['InvoiceNo'];
                             whereValues = [parsedData.old_InvoiceNo || parsedData.InvoiceNo];
-                        } else if (parsedData.OrderNo || parsedData.old_OrderNo) {
+                        } else if (('OrderNo' in parsedData) || ('old_OrderNo' in parsedData)) {
                             whereFields = ['OrderNo'];
                             whereValues = [parsedData.old_OrderNo || parsedData.OrderNo];
                         } else {
@@ -254,32 +263,68 @@ async function executeAdvancedSyncOperation(database, tableName, operation, data
                 else if (tableName === 'StockItems') {
                     if (businessType === 'retail') {
                         // Retail: StockItems表使用StockId作为WHERE条件
-                        if (!parsedData.StockId) {
-                            throw new Error('No StockId found for UPDATE operation on StockItems (Retail)');
+                        if (!('StockId' in parsedData) && !('old_StockId' in parsedData)) {
+                            throw new Error('No StockId or old_StockId found for UPDATE operation on StockItems (Retail)');
                         }
+                        whereFields = ['StockId'];
+                        whereValues = [parsedData.old_StockId || parsedData.StockId];
                     }
-                    whereFields = ['StockId'];
-                    whereValues = [parsedData.old_StockId || parsedData.StockId];
                 } else if (tableName === 'MenuItem') {
                     if (businessType === 'hospitality') {
                         // Hospitality: MenuItem表使用ItemCode作为WHERE条件
-                        if (!parsedData.ItemCode) {
-                            throw new Error('No ItemCode found for UPDATE operation on MenuItem (Hospitality)');
+                        if (!('ItemCode' in parsedData) && !('old_ItemCode' in parsedData)) {
+                            throw new Error('No ItemCode or old_ItemCode found for UPDATE operation on MenuItem (Hospitality)');
                         }
+                        whereFields = ['ItemCode'];
+                        whereValues = [parsedData.old_ItemCode || parsedData.ItemCode];
                     }
-                    whereFields = ['ItemCode'];
-                    whereValues = [parsedData.old_ItemCode || parsedData.ItemCode];
                 }
                 else if (tableName === 'SubMenuLinkDetail') {
                     if (businessType === 'hospitality') {
                         // Hospitality: SubMenuLinkDetail表使用ItemCode作为WHERE条件
-                        if (!parsedData.ItemCode) {
-                            throw new Error('No ItemCode found for UPDATE operation on SubMenuLinkDetail (Hospitality)');
+                        if (!('ItemCode' in parsedData) && !('old_ItemCode' in parsedData)) {
+                            throw new Error('No ItemCode or old_ItemCode found for UPDATE operation on SubMenuLinkDetail (Hospitality)');
                         }
-
+                        whereFields = ['ItemCode'];
+                        whereValues = [parsedData.old_ItemCode || parsedData.ItemCode];
                     }
-                    whereFields = ['ItemCode'];
-                    whereValues = [parsedData.old_ItemCode || parsedData.ItemCode];
+                }
+                else if (tableName === 'PaymentReceived') {
+                    if (businessType === 'hospitality') {
+                        // Hospitality: PaymentReceived表使用OrderNo + Id作为联合WHERE条件
+                        if (!('OrderNo' in parsedData) && !('old_OrderNo' in parsedData)) {
+                            throw new Error('No OrderNo or old_OrderNo found for UPDATE operation on PaymentReceived (Hospitality)');
+                        }
+                        if (!('Id' in parsedData) && !('old_Id' in parsedData)) {
+                            throw new Error('No Id or old_Id found for UPDATE operation on PaymentReceived (Hospitality)');
+                        }
+                        whereFields = ['OrderNo', 'Id'];
+                        whereValues = [
+                            parsedData.old_OrderNo || parsedData.OrderNo,
+                            parsedData.old_Id || parsedData.Id
+                        ];
+                    } else if (businessType === 'retail') {
+                        // Retail: PaymentReceived表使用InvoiceNo + Id作为联合WHERE条件
+                        if (!('InvoiceNo' in parsedData) && !('old_InvoiceNo' in parsedData)) {
+                            throw new Error('No InvoiceNo or old_InvoiceNo found for UPDATE operation on PaymentReceived (Retail)');
+                        }
+                        if (!('Id' in parsedData) && !('old_Id' in parsedData)) {
+                            throw new Error('No Id or old_Id found for UPDATE operation on PaymentReceived (Retail)');
+                        }
+                        whereFields = ['InvoiceNo', 'Id'];
+                        whereValues = [
+                            parsedData.old_InvoiceNo || parsedData.InvoiceNo,
+                            parsedData.old_Id || parsedData.Id
+                        ];
+                    }
+                }
+                else if (tableName === 'Payment') {
+                    // Payment表使用Payment字段作为主键（零售和酒店通用）
+                    if (!('Payment' in parsedData) && !('old_Payment' in parsedData)) {
+                        throw new Error('No Payment or old_Payment found for UPDATE operation on Payment');
+                    }
+                    whereFields = ['Payment'];
+                    whereValues = [parsedData.old_Payment || parsedData.Payment];
                 }
                 
               
@@ -309,6 +354,10 @@ async function executeAdvancedSyncOperation(database, tableName, operation, data
                     .map(key => parsedData[key]);
                 
                 // 构建WHERE子句（支持联合条件）
+                if (whereFields.length === 0) {
+                    throw new Error(`No WHERE condition defined for UPDATE operation on ${tableName} with businessType=${businessType}`);
+                }
+                
                 const whereClause = whereFields
                     .map(field => `\`${field}\` = ?`)
                     .join(' AND ');
@@ -327,15 +376,21 @@ async function executeAdvancedSyncOperation(database, tableName, operation, data
                 if (tableName === 'SalesDetail') {
                     if (businessType === 'hospitality') {
                         // Hospitality: SalesDetail表使用OrderNo + ItemCode作为联合WHERE条件
-                        if (!parsedData.OrderNo || !parsedData.ItemCode) {
-                            throw new Error('No OrderNo or ItemCode found for DELETE operation on SalesDetail (Hospitality)');
+                        if (!('OrderNo' in parsedData)) {
+                            throw new Error('No OrderNo found for DELETE operation on SalesDetail (Hospitality)');
+                        }
+                        if (!('ItemCode' in parsedData)) {
+                            throw new Error('No ItemCode found for DELETE operation on SalesDetail (Hospitality)');
                         }
                         deleteFields = ['OrderNo', 'ItemCode'];
                         deleteValues = [parsedData.OrderNo, parsedData.ItemCode];
                     } else if (businessType === 'retail') {
                         // Retail: SalesDetail表使用InvoiceNo + StockId作为联合WHERE条件
-                        if (!parsedData.InvoiceNo || !parsedData.StockId) {
-                            throw new Error('No InvoiceNo or StockId found for DELETE operation on SalesDetail (Retail)');
+                        if (!('InvoiceNo' in parsedData)) {
+                            throw new Error('No InvoiceNo found for DELETE operation on SalesDetail (Retail)');
+                        }
+                        if (!('StockId' in parsedData)) {
+                            throw new Error('No StockId found for DELETE operation on SalesDetail (Retail)');
                         }
                         deleteFields = ['InvoiceNo', 'StockId'];
                         deleteValues = [parsedData.InvoiceNo, parsedData.StockId];
@@ -343,14 +398,14 @@ async function executeAdvancedSyncOperation(database, tableName, operation, data
                 } else if (tableName === 'Sales') {
                     if (businessType === 'hospitality') {
                         // Hospitality: Sales表使用OrderNo作为WHERE条件
-                        if (!parsedData.OrderNo) {
+                        if (!('OrderNo' in parsedData)) {
                             throw new Error('No OrderNo found for DELETE operation on Sales (Hospitality)');
                         }
                         deleteFields = ['OrderNo'];
                         deleteValues = [parsedData.OrderNo];
                     } else if (businessType === 'retail') {
                         // Retail: Sales表使用InvoiceNo作为WHERE条件
-                        if (!parsedData.InvoiceNo) {
+                        if (!('InvoiceNo' in parsedData)) {
                             throw new Error('No InvoiceNo found for DELETE operation on Sales (Retail)');
                         }
                         deleteFields = ['InvoiceNo'];
@@ -358,21 +413,50 @@ async function executeAdvancedSyncOperation(database, tableName, operation, data
                     }
                 } else if (tableName === 'MenuItem') {
                     // MenuItem表使用ItemCode作为主键
-                    if (!parsedData.ItemCode) {
+                    if (!('ItemCode' in parsedData)) {
                         throw new Error('No ItemCode found for DELETE operation on MenuItem');
                     }
                     deleteFields = ['ItemCode'];
                     deleteValues = [parsedData.ItemCode];
                 } else if (tableName === 'StockItems') {
                     // StockItems表使用StockId作为主键
-                    if (!parsedData.StockId) {
+                    if (!('StockId' in parsedData)) {
                         throw new Error('No StockId found for DELETE operation on StockItems');
                     }
                     deleteFields = ['StockId'];
                     deleteValues = [parsedData.StockId];
+                } else if (tableName === 'PaymentReceived') {
+                    if (businessType === 'hospitality') {
+                        // Hospitality: PaymentReceived表使用OrderNo + Id作为联合WHERE条件
+                        if (!('OrderNo' in parsedData)) {
+                            throw new Error('No OrderNo found for DELETE operation on PaymentReceived (Hospitality)');
+                        }
+                        if (!('Id' in parsedData)) {
+                            throw new Error('No Id found for DELETE operation on PaymentReceived (Hospitality)');
+                        }
+                        deleteFields = ['OrderNo', 'Id'];
+                        deleteValues = [parsedData.OrderNo, parsedData.Id];
+                    } else if (businessType === 'retail') {
+                        // Retail: PaymentReceived表使用InvoiceNo + Id作为联合WHERE条件
+                        if (!('InvoiceNo' in parsedData)) {
+                            throw new Error('No InvoiceNo found for DELETE operation on PaymentReceived (Retail)');
+                        }
+                        if (!('Id' in parsedData)) {
+                            throw new Error('No Id found for DELETE operation on PaymentReceived (Retail)');
+                        }
+                        deleteFields = ['InvoiceNo', 'Id'];
+                        deleteValues = [parsedData.InvoiceNo, parsedData.Id];
+                    }
+                } else if (tableName === 'Payment') {
+                    // Payment表使用Payment字段作为主键（零售和酒店通用）
+                    if (!('Payment' in parsedData)) {
+                        throw new Error('No Payment found for DELETE operation on Payment');
+                    }
+                    deleteFields = ['Payment'];
+                    deleteValues = [parsedData.Payment];
                 } else {
                     // 其他表尝试使用id字段
-                    if (parsedData.id) {
+                    if ('id' in parsedData) {
                         deleteFields = ['id'];
                         deleteValues = [parsedData.id];
                     } else {
@@ -381,6 +465,10 @@ async function executeAdvancedSyncOperation(database, tableName, operation, data
                 }
                 
                 // 构建WHERE子句（支持联合条件）
+                if (deleteFields.length === 0) {
+                    throw new Error(`No WHERE condition defined for DELETE operation on ${tableName} with businessType=${businessType}`);
+                }
+                
                 const deleteWhereClause = deleteFields
                     .map(field => `\`${field}\` = ?`)
                     .join(' AND ');
@@ -619,7 +707,7 @@ io.on('connection', (socket) => {
     // Handle sync data from client
     socket.on('sync_data', async (data) => {
         try {
-        
+            
             // Check if this is from Advanced Online Report (has appId and storeId)
             if (data.appId && data.storeId) {
                 // Process Advanced Online Report sync data
@@ -673,7 +761,7 @@ io.on('connection', (socket) => {
             // Check if error is due to table not existing
             if (error.message.startsWith('TABLE_NOT_EXISTS:')) {
                 const tableName = error.message.split(':')[1];
-               
+                
                 // Request table schema from client
                 socket.emit('request_table_schema', {
                     tableName: tableName,
@@ -842,7 +930,7 @@ io.on('connection', (socket) => {
     // Handle batch sync data
     socket.on('batch_sync', async (batchData) => {
         try {
-          
+            
             const results = [];
             for (const data of batchData) {
                 const result = await syncService.processSyncData(data);
@@ -879,7 +967,7 @@ io.on('connection', (socket) => {
         try {
             const { appId, storeId, tableName, operation, sqlCommand, timestamp, syncId } = data;
             
-           
+
             // Get database configuration for this app from license service
             const database = await licenseService.getDatabaseByStoreAndApp(storeId, appId);
             if (!database) {
@@ -947,7 +1035,7 @@ io.on('connection', (socket) => {
     socket.on('verify_and_sync_table', async (data) => {
         try {
             const { tableName, batchSize } = data;
-          
+            
             // Validate that client has storeId and appId from identification
             if (!socket.storeId || !socket.appId) {
                 logger.error(`Client ${socket.id} missing store or app identification`);
@@ -1007,7 +1095,7 @@ io.on('connection', (socket) => {
             
             // If table exists and needs sync, request CSV bulk sync instead of initial data
             if (exists && needsSync) {
-               
+                
                 // Add a small delay to ensure the verify response is processed first
                 setTimeout(() => {
                     socket.emit('csv_bulk_sync_request', {
@@ -1016,7 +1104,7 @@ io.on('connection', (socket) => {
                     });
                 }, 100);
             }
-           
+            
         } catch (error) {
             logger.error(`Table verification and sync error: ${error.message}`, error);
             socket.emit('verify_and_sync_response', {
@@ -1032,7 +1120,7 @@ io.on('connection', (socket) => {
     socket.on('create_table_from_schema', async (data) => {
         try {
             const { tableName, schema, isInitialSync, databaseType } = data;
-           
+            
             // Validate client identification
             if (!socket.storeId || !socket.appId) {
                 logger.error(`Client ${socket.id} missing store or app identification`);
@@ -1066,7 +1154,7 @@ io.on('connection', (socket) => {
             
             // If this is for initial sync, request CSV bulk sync after table creation
             if (isInitialSync) {
-             
+                
                 // Wait a bit for the client to process the table_created event
                 setTimeout(() => {
                     socket.emit('csv_bulk_sync_request', {
@@ -1166,7 +1254,7 @@ io.on('connection', (socket) => {
                 batchSkipCount: skipCount
             });
             
-           
+            
             // If this is the last batch, send completion notification
             if (isLastBatch) {
                 socket.emit('initial_sync_complete', {
@@ -1429,10 +1517,10 @@ io.on('connection', (socket) => {
                 return;
             }
 
-            // Define tables to clear (include Sales table for both retail and hospitality)
-            const tablesToClear = ['SalesDetail', 'StockItems', 'Sales', 'MenuItem', 'SubMenuLinkDetail'];
+            // Define tables to clear (include Sales table, PaymentReceived and Payment for both retail and hospitality)
+            const tablesToClear = ['SalesDetail', 'StockItems', 'Sales', 'MenuItem', 'SubMenuLinkDetail', 'PaymentReceived', 'Payment'];
 
-            
+
             // Clear each table
             const connection = await dbManager.getConnection();
             try {

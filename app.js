@@ -326,6 +326,16 @@ async function executeAdvancedSyncOperation(database, tableName, operation, data
                     whereFields = ['Payment'];
                     whereValues = [parsedData.old_Payment || parsedData.Payment];
                 }
+                else if (tableName === 'WorkStationId') {
+                    // WorkStationId表使用WorkStationId字段作为主键（仅零售系统）
+                    if (businessType === 'retail') {
+                        if (!('WorkStationId' in parsedData) && !('old_WorkStationId' in parsedData)) {
+                            throw new Error('No WorkStationId or old_WorkStationId found for UPDATE operation on WorkStationId (Retail)');
+                        }
+                        whereFields = ['WorkStationId'];
+                        whereValues = [parsedData.old_WorkStationId || parsedData.WorkStationId];
+                    }
+                }
                 
               
               
@@ -454,6 +464,15 @@ async function executeAdvancedSyncOperation(database, tableName, operation, data
                     }
                     deleteFields = ['Payment'];
                     deleteValues = [parsedData.Payment];
+                } else if (tableName === 'WorkStationId') {
+                    // WorkStationId表使用WorkStationId字段作为主键（仅零售系统）
+                    if (businessType === 'retail') {
+                        if (!('WorkStationId' in parsedData)) {
+                            throw new Error('No WorkStationId found for DELETE operation on WorkStationId (Retail)');
+                        }
+                        deleteFields = ['WorkStationId'];
+                        deleteValues = [parsedData.WorkStationId];
+                    }
                 } else {
                     // 其他表尝试使用id字段
                     if ('id' in parsedData) {
@@ -1517,8 +1536,8 @@ io.on('connection', (socket) => {
                 return;
             }
 
-            // Define tables to clear (include Sales table, PaymentReceived and Payment for both retail and hospitality)
-            const tablesToClear = ['SalesDetail', 'StockItems', 'Sales', 'MenuItem', 'SubMenuLinkDetail', 'PaymentReceived', 'Payment'];
+            // Define tables to clear (include Sales table, PaymentReceived, Payment and WorkStationId for both retail and hospitality)
+            const tablesToClear = ['SalesDetail', 'StockItems', 'Sales', 'MenuItem', 'SubMenuLinkDetail', 'PaymentReceived', 'Payment', 'WorkStationId'];
 
 
             // Clear each table

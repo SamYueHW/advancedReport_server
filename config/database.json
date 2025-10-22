@@ -21,12 +21,12 @@
     },
     "RETAIL-STORE-01": {
       "database": "retail_store1",
-      "tables": ["SalesDetail", "StockItems", "Sales", "PaymentReceived", "Payment"],
+      "tables": ["SalesDetail", "StockItems", "Sales", "PaymentReceived", "Payment", "WorkStationId"],
       "type": "retail"
     },
     "RETAIL-STORE-02": {
       "database": "retail_store2",
-      "tables": ["SalesDetail", "StockItems", "Sales", "PaymentReceived", "Payment"],
+      "tables": ["SalesDetail", "StockItems", "Sales", "PaymentReceived", "Payment", "WorkStationId"],
       "type": "retail"
     }
   }

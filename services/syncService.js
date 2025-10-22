@@ -7,7 +7,7 @@ const path = require('path');
 // Validation schema for sync data
 const syncDataSchema = Joi.object({
     MachineName: Joi.string().required(),
-    TableName: Joi.string().valid('SalesDetail', 'StockItems', 'MenuItem', 'SubMenuLinkDetail', 'Sales', 'PaymentReceived', 'Payment').required(),
+    TableName: Joi.string().valid('SalesDetail', 'StockItems', 'MenuItem', 'SubMenuLinkDetail', 'Sales', 'PaymentReceived', 'Payment', 'WorkStationId').required(),
     Operation: Joi.string().valid('INSERT', 'UPDATE', 'DELETE', 'SCHEMA_CHANGE').required(),
     Data: Joi.object().required(),
     Timestamp: Joi.date().required(),
@@ -30,7 +30,8 @@ class SyncService {
             'Sales': ['InvoiceNo', 'TransactionDate'],
             'MenuItem': ['ItemCode'],
             'SubMenuLinkDetail': ['ItemCode', 'SubItemCode'],
-            'Payment': ['Payment']
+            'Payment': ['Payment'],
+            'WorkStationId': ['WorkStationId']
         };
         
         // PaymentReceived has different keys for retail vs hospitality

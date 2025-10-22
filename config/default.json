@@ -56,6 +56,10 @@
     "Payment": {
       "whereFields": ["Payment"],
       "description": "For both retail and hospitality: Use Payment for WHERE conditions in UPDATE/DELETE operations"
+    },
+    "WorkStationId": {
+      "whereFields": ["WorkStationId"],
+      "description": "For retail only: Use WorkStationId for WHERE conditions in UPDATE/DELETE operations"
     }
   }
 } 

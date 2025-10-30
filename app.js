@@ -35,12 +35,12 @@ async function convertSqlServerDDLToMySQL(sqlCommand, tableName, operation) {
                 .replace(/GETDATE\(\)/gi, 'NOW()')
                 .replace(/NEWID\(\)/gi, 'UUID()');
 
-            logger.info(`After data type conversion: ${mysqlDDL}`);
+          
 
             // Convert common ALTER TABLE operations
             if (upperSql.includes('ADD COLUMN') || upperSql.includes('ADD ')) {
                 // Fix ADD COLUMN syntax for MySQL - AFTER data type conversion
-                logger.info(`Attempting ADD COLUMN conversion on: ${mysqlDDL}`);
+            
                 
                 // 先处理带长度和NULL约束的
                 const before1 = mysqlDDL;
@@ -795,6 +795,60 @@ io.on('connection', (socket) => {
                     timestamp: new Date().toISOString()
                 });
             }
+        }
+    });
+
+    // Reset Advanced Report: drop all tables for the app's database after verifying appId/storeId
+    socket.on('reset_advanced_report', async (data) => {
+        try {
+            const appId = data?.appId || socket.appId;
+            const storeId = data?.storeId || socket.storeId;
+
+            if (!appId || !storeId) {
+                socket.emit('reset_advanced_report_response', { success: false, error: 'Missing appId or storeId' });
+                return;
+            }
+
+            // Validate license and get database
+            const licenseValidation = await licenseService.validateAdvancedReportLicense(storeId, appId);
+            if (!licenseValidation?.isValid) {
+                socket.emit('reset_advanced_report_response', { success: false, error: 'License invalid for this app/store' });
+                return;
+            }
+
+            const database = await licenseService.getDatabaseByStoreAndApp(storeId, appId);
+            if (!database) {
+                socket.emit('reset_advanced_report_response', { success: false, error: `No database configuration for Store ${storeId}` });
+                return;
+            }
+
+            // List all tables in target schema and drop them
+            // For MySQL, licenseService.getDatabaseByStoreAndApp returns the schema name (appId string)
+            const schemaName = database; // ensure it's a string, not accessing undefined property
+            const listSql = 'SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ?';
+            const tablesResult = await dbManager.executeQuery(database, listSql, [schemaName]);
+
+            const tableRows = Array.isArray(tablesResult?.rows) ? tablesResult.rows : tablesResult;
+            const tableNames = (tableRows || []).map(r => r.TABLE_NAME || r.table_name).filter(Boolean);
+
+            // Disable foreign key checks to allow dropping in any order
+            await dbManager.executeQuery(database, 'SET FOREIGN_KEY_CHECKS=0');
+            let dropped = 0;
+            for (const t of tableNames) {
+                try {
+                    await dbManager.executeQuery(database, `DROP TABLE \`${t}\``);
+                    dropped++;
+                } catch (err) {
+                    logger.warn(`Failed to drop table ${t}: ${err.message}`);
+                }
+            }
+            await dbManager.executeQuery(database, 'SET FOREIGN_KEY_CHECKS=1');
+
+            socket.emit('reset_advanced_report_response', { success: true, droppedTables: dropped });
+           
+        } catch (error) {
+            logger.error('reset_advanced_report error:', error);
+            socket.emit('reset_advanced_report_response', { success: false, error: error.message });
         }
     });
 

@@ -893,13 +893,12 @@ class SyncService {
             // Clean up file after processing
             try {
                 await fs.unlink(filePath);
-                logger.info(`Cleaned up CSV file: ${filePath}`);
+               
             } catch (cleanupError) {
                 logger.warn(`Failed to cleanup CSV file ${filePath}: ${cleanupError.message}`);
             }
 
-            logger.info(`Single CSV file processing completed: ${fileName} - ${processedRows} rows imported`);
-
+           
             return {
                 success: true,
                 processedRows: processedRows,
@@ -1159,10 +1158,7 @@ class SyncService {
                     }
                     
                     if (affectedRows > 0 || skippedRows > 0) {
-                        logger.info(`=== CSV Import Completed ===`);
-                        logger.info(`Rows successfully imported: ${affectedRows}`);
-                        logger.info(`Rows skipped (duplicates): ${skippedRows}`);
-                        logger.info(`Total rows processed: ${affectedRows + skippedRows} (estimated)`);
+                        
                         return affectedRows;
                     } else {
                         logger.warn(`No rows imported and no duplicates found`);

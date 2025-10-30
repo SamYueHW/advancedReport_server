@@ -94,13 +94,10 @@ class LicenseService {
             }
 
             const store = rows[0];
-            console.log(store);
+           
             const expireDate = new Date(store.AdvancedReportLicenseExpire);
             const currentDate = new Date();
             const isExpired = expireDate <= currentDate;
-
-            logger.info(`License check for Store ${storeId}: ExpireDate=${expireDate.toISOString()}, IsExpired=${isExpired}`);
-
             return {
                 isValid: !isExpired,
                 isExpired: isExpired,

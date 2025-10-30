@@ -5,8 +5,7 @@
     "password": "123123",
     "port": 3306,
     "connectionLimit": 10,
-    "multipleStatements": true,
-    "localInfile": true
+    "multipleStatements": true
   },
   "machineMapping": {
     "DESKTOP-AT2M247": {

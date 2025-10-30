@@ -5,7 +5,15 @@ const dbConfig = require('../config/database.json');
 class DatabaseManager {
     constructor() {
         this.pools = new Map();
-        this.config = dbConfig.mysql;
+        // 基础配置（可被环境变量覆盖）
+        this.config = {
+            host: process.env.MYSQL_HOST || dbConfig.mysql.host,
+            user: process.env.MYSQL_USER || dbConfig.mysql.user,
+            password: process.env.ONLINE_REPORT_DB_PASSWORD || dbConfig.mysql.password,
+            port: process.env.MYSQL_PORT ? Number(process.env.MYSQL_PORT) : dbConfig.mysql.port,
+            connectionLimit: process.env.MYSQL_CONNECTION_LIMIT ? Number(process.env.MYSQL_CONNECTION_LIMIT) : (dbConfig.mysql.connectionLimit || 10),
+            multipleStatements: process.env.MYSQL_MULTIPLE_STATEMENTS ? (process.env.MYSQL_MULTIPLE_STATEMENTS === 'true') : (dbConfig.mysql.multipleStatements === true),
+        };
     }
 
     // Get or create connection pool for specific database

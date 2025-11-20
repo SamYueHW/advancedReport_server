@@ -5,6 +5,7 @@ const logger = require('./utils/logger');
 const dbManager = require('./utils/database');
 const syncService = require('./services/syncService');
 const licenseService = require('./services/licenseService');
+const redisClient = require('./utils/redisClient');
 
 // Load environment variables
 require('dotenv').config();
@@ -146,8 +147,7 @@ async function processAdvancedSyncData(data) {
             parsedData.Idx = parsedData.Idx !== undefined ? parsedData.Idx : recordIdx;
         }
 
-        // Process the sync operation
-        logger.info(`Processing sync: tableName=${tableName}, operation=${operation}, businessType=${businessType}`);
+       
         const result = await executeAdvancedSyncOperation(database, tableName, operation, parsedData, businessType);
         
         return {
@@ -731,6 +731,7 @@ app.get('/status', async (req, res) => {
 
 // Socket.io connection handling
 const clientFullSyncStatus = new Map(); // Track full sync status for each client
+const advancedReportOnlineCounts = new Map(); // Track active advanced report connections per store/app
 
 io.on('connection', (socket) => {
   
@@ -780,6 +781,21 @@ io.on('connection', (socket) => {
                 // License is valid, store license info in socket
                 socket.licenseInfo = licenseValidation.storeInfo;
                 
+                try {
+                    const redisKey = `advancedreport:online:${storeId}:${appId}`;
+                    const mapKey = `${storeId}:${appId}`;
+                    const prevCount = advancedReportOnlineCounts.get(mapKey) || 0;
+                    advancedReportOnlineCounts.set(mapKey, prevCount + 1);
+                    socket.redisOnlineKey = redisKey;
+                    socket.advancedOnlineMapKey = mapKey;
+
+                    if (prevCount === 0) {
+                        await redisClient.set(redisKey, '1');
+                        logger.info(`Advanced Report online key created: ${redisKey}`);
+                    }
+                } catch (redisError) {
+                    logger.error(`Failed to update Redis online status: ${redisError.message}`);
+                }
             }
             
             // Standard identification process
@@ -1232,7 +1248,23 @@ io.on('connection', (socket) => {
     });
 
     // Handle client disconnect
-    socket.on('disconnect', (reason) => {
+    socket.on('disconnect', async (reason) => {
+        if (socket.advancedOnlineMapKey && socket.redisOnlineKey) {
+            try {
+                const mapKey = socket.advancedOnlineMapKey;
+                const currentCount = (advancedReportOnlineCounts.get(mapKey) || 1) - 1;
+                if (currentCount <= 0) {
+                    advancedReportOnlineCounts.delete(mapKey);
+                    await redisClient.del(socket.redisOnlineKey);
+                    logger.info(`Removed Redis key ${socket.redisOnlineKey}`);
+                } else {
+                    advancedReportOnlineCounts.set(mapKey, currentCount);
+                    logger.info(`Advanced Report connections remaining for ${mapKey}: ${currentCount}`);
+                }
+            } catch (redisError) {
+                logger.error(`Failed to update Redis on disconnect: ${redisError.message}`);
+            }
+        }
        
         // Clean up client data
         clientFullSyncStatus.delete(socket.id);

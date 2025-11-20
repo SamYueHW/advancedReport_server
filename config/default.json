@@ -60,6 +60,14 @@
     "WorkStationId": {
       "whereFields": ["WorkStationId"],
       "description": "For retail only: Use WorkStationId for WHERE conditions in UPDATE/DELETE operations"
+    },
+    "Vendor": {
+      "whereFields": ["VendorId"],
+      "description": "For retail only: Use VendorId for WHERE conditions in UPDATE/DELETE operations"
+    },
+    "StockRelatedVendor": {
+      "whereFields": ["StockId", "VendorId"],
+      "description": "For retail only: Use StockId and VendorId for WHERE conditions in UPDATE/DELETE operations"
     }
   }
 } 

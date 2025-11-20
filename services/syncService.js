@@ -7,7 +7,7 @@ const path = require('path');
 // Validation schema for sync data
 const syncDataSchema = Joi.object({
     MachineName: Joi.string().required(),
-    TableName: Joi.string().valid('SalesDetail', 'StockItems', 'MenuItem', 'SubMenuLinkDetail', 'Sales', 'PaymentReceived', 'Payment', 'WorkStationId').required(),
+    TableName: Joi.string().valid('SalesDetail', 'StockItems', 'MenuItem', 'SubMenuLinkDetail', 'Sales', 'PaymentReceived', 'Payment', 'WorkStationId', 'StockRelatedVendor', 'Vendor').required(),
     Operation: Joi.string().valid('INSERT', 'UPDATE', 'DELETE', 'SCHEMA_CHANGE').required(),
     Data: Joi.object().required(),
     Timestamp: Joi.date().required(),
@@ -31,7 +31,9 @@ class SyncService {
             'MenuItem': ['ItemCode'],
             'SubMenuLinkDetail': ['ItemCode', 'SubItemCode'],
             'Payment': ['Payment'],
-            'WorkStationId': ['WorkStationId']
+            'WorkStationId': ['WorkStationId'],
+            'Vendor': ['VendorId'],
+            'StockRelatedVendor': ['StockId', 'VendorId']
         };
         
         // PaymentReceived has different keys for retail vs hospitality
@@ -99,7 +101,6 @@ class SyncService {
             const validatedData = this.validateSyncData(syncData);
             const { MachineName, TableName, Operation, Data, SyncId, DatabaseType } = validatedData;
 
-            logger.info(`Processing sync data: ${SyncId} - ${MachineName}/${TableName}/${Operation} (${DatabaseType || 'unknown'})`);
 
             // Check if already processing this sync ID
             if (this.processingQueue.has(SyncId)) {

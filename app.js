@@ -115,7 +115,7 @@ async function convertSqlServerDDLToMySQL(sqlCommand, tableName, operation) {
 // Process Advanced Online Report sync data (with appId/storeId instead of MachineName)
 async function processAdvancedSyncData(data) {
     try {
-        const { appId, storeId, tableName, operation, recordData, timestamp, syncId, businessType } = data;
+        const { appId, storeId, tableName, operation, recordData, timestamp, syncId, businessType, recordIdx } = data;
         
         // Get database configuration for this app from license service
         const database = await licenseService.getDatabaseByStoreAndApp(storeId, appId);
@@ -133,13 +133,17 @@ async function processAdvancedSyncData(data) {
                 // Parse XML data (similar to legacy sync)
                 parsedData = await parseXMLData(recordData);
             } else {
-                parsedData = recordData;
+                parsedData = recordData || {};
             }
         } catch (parseError) {
             return {
                 success: false,
                 error: `Failed to parse record data: ${parseError.message}`
             };
+        }
+
+        if (recordIdx !== undefined && recordIdx !== null && typeof parsedData === 'object') {
+            parsedData.Idx = parsedData.Idx !== undefined ? parsedData.Idx : recordIdx;
         }
 
         // Process the sync operation
@@ -198,6 +202,35 @@ async function executeAdvancedSyncOperation(database, tableName, operation, data
                 
                 return await dbManager.executeQuery(database, insertSql, insertValues);
             case 'UPDATE':
+                if (parsedData.Idx !== undefined && parsedData.Idx !== null) {
+                    const idxValue = parsedData.Idx;
+                    const updateData = { ...parsedData };
+                    delete updateData.Idx;
+
+                    const filteredUpdateData = Object.keys(updateData).reduce((acc, key) => {
+                        if (!key.startsWith('old_')) {
+                            acc[key] = updateData[key];
+                        }
+                        return acc;
+                    }, {});
+
+                    if (Object.keys(filteredUpdateData).length === 0) {
+                        throw new Error(`No update data provided for ${tableName} (Idx=${idxValue})`);
+                    }
+
+                    const setClauseByIdx = Object.keys(filteredUpdateData)
+                        .map(key => `\`${key}\` = ?`)
+                        .join(', ');
+
+                    const updateSqlByIdx = `
+                        UPDATE ${tableName}
+                        SET ${setClauseByIdx}
+                        WHERE \`Idx\` = ?
+                    `;
+
+                    const updateParams = [...Object.values(filteredUpdateData), idxValue];
+                    return await dbManager.executeQuery(database, updateSqlByIdx, updateParams);
+                }
                 // 根据业务类型和表名确定主键字段（支持联合主键）
                 let whereFields = [];
                 let whereValues = [];
@@ -335,6 +368,30 @@ async function executeAdvancedSyncOperation(database, tableName, operation, data
                         whereFields = ['WorkStationId'];
                         whereValues = [parsedData.old_WorkStationId || parsedData.WorkStationId];
                     }
+                } else if (tableName === 'Vendor') {
+                    // Vendor表使用VendorId字段作为主键（仅零售系统）
+                    if (businessType === 'retail') {
+                        if (!('VendorId' in parsedData) && !('old_VendorId' in parsedData)) {
+                            throw new Error('No VendorId or old_VendorId found for UPDATE operation on Vendor (Retail)');
+                        }
+                        whereFields = ['VendorId'];
+                        whereValues = [parsedData.old_VendorId || parsedData.VendorId];
+                    }
+                } else if (tableName === 'StockRelatedVendor') {
+                    // StockRelatedVendor表使用StockId + VendorId作为联合主键（仅零售系统）
+                    if (businessType === 'retail') {
+                        if (!('StockId' in parsedData) && !('old_StockId' in parsedData)) {
+                            throw new Error('No StockId or old_StockId found for UPDATE operation on StockRelatedVendor (Retail)');
+                        }
+                        if (!('VendorId' in parsedData) && !('old_VendorId' in parsedData)) {
+                            throw new Error('No VendorId or old_VendorId found for UPDATE operation on StockRelatedVendor (Retail)');
+                        }
+                        whereFields = ['StockId', 'VendorId'];
+                        whereValues = [
+                            parsedData.old_StockId || parsedData.StockId,
+                            parsedData.old_VendorId || parsedData.VendorId
+                        ];
+                    }
                 }
                 
               
@@ -377,6 +434,13 @@ async function executeAdvancedSyncOperation(database, tableName, operation, data
                 
                 return await dbManager.executeQuery(database, sql, [...updateValues, ...whereValues]);
             case 'DELETE':
+                if (parsedData.Idx !== undefined && parsedData.Idx !== null) {
+                    const deleteSqlByIdx = `
+                        DELETE FROM ${tableName}
+                        WHERE \`Idx\` = ?
+                    `;
+                    return await dbManager.executeQuery(database, deleteSqlByIdx, [parsedData.Idx]);
+                }
                 // 根据业务类型和表名确定主键字段（支持联合主键）
                 let deleteFields = [];
                 let deleteValues = [];
@@ -472,6 +536,27 @@ async function executeAdvancedSyncOperation(database, tableName, operation, data
                         }
                         deleteFields = ['WorkStationId'];
                         deleteValues = [parsedData.WorkStationId];
+                    }
+                } else if (tableName === 'Vendor') {
+                    // Vendor表使用VendorId字段作为主键（仅零售系统）
+                    if (businessType === 'retail') {
+                        if (!('VendorId' in parsedData)) {
+                            throw new Error('No VendorId found for DELETE operation on Vendor (Retail)');
+                        }
+                        deleteFields = ['VendorId'];
+                        deleteValues = [parsedData.VendorId];
+                    }
+                } else if (tableName === 'StockRelatedVendor') {
+                    // StockRelatedVendor表使用StockId + VendorId作为联合主键（仅零售系统）
+                    if (businessType === 'retail') {
+                        if (!('StockId' in parsedData)) {
+                            throw new Error('No StockId found for DELETE operation on StockRelatedVendor (Retail)');
+                        }
+                        if (!('VendorId' in parsedData)) {
+                            throw new Error('No VendorId found for DELETE operation on StockRelatedVendor (Retail)');
+                        }
+                        deleteFields = ['StockId', 'VendorId'];
+                        deleteValues = [parsedData.StockId, parsedData.VendorId];
                     }
                 } else {
                     // 其他表尝试使用id字段
@@ -796,6 +881,60 @@ io.on('connection', (socket) => {
                 });
             }
         }
+    });
+
+    socket.on('sync_data_batch', async (payload) => {
+        const batchId = payload?.batchId;
+        const records = Array.isArray(payload?.records) ? payload.records : [];
+
+        if (!batchId) {
+            socket.emit('sync_batch_response', {
+                batchId: null,
+                results: [],
+                error: 'Missing batchId'
+            });
+            return;
+        }
+
+        const results = [];
+
+        for (const record of records) {
+            try {
+                if (record.appId && record.storeId) {
+                    const result = await processAdvancedSyncData(record);
+                    results.push({
+                        syncId: record.syncId,
+                        success: result.success,
+                        error: result.success ? null : result.error || result.message || 'Unknown error'
+                    });
+                } else if (record.MachineName) {
+                    const result = await syncService.processSyncData(record);
+                    results.push({
+                        syncId: record.SyncId,
+                        success: result.success,
+                        error: result.success ? null : result.error || 'Unknown error'
+                    });
+                } else {
+                    results.push({
+                        syncId: record.syncId || record.SyncId || null,
+                        success: false,
+                        error: 'Missing identification in batch record'
+                    });
+                }
+            } catch (err) {
+                logger.error(`Batch record sync failed: ${err.message}`);
+                results.push({
+                    syncId: record.syncId || record.SyncId || null,
+                    success: false,
+                    error: err.message
+                });
+            }
+        }
+
+        socket.emit('sync_batch_response', {
+            batchId,
+            results
+        });
     });
 
     // Reset Advanced Report: drop all tables for the app's database after verifying appId/storeId
@@ -1590,8 +1729,8 @@ io.on('connection', (socket) => {
                 return;
             }
 
-            // Define tables to clear (include Sales table, PaymentReceived, Payment and WorkStationId for both retail and hospitality)
-            const tablesToClear = ['SalesDetail', 'StockItems', 'Sales', 'MenuItem', 'SubMenuLinkDetail', 'PaymentReceived', 'Payment', 'WorkStationId'];
+            // Define tables to clear (include Sales table, PaymentReceived, Payment, WorkStationId, Vendor, and StockRelatedVendor for both retail and hospitality)
+            const tablesToClear = ['SalesDetail', 'StockItems', 'Sales', 'MenuItem', 'SubMenuLinkDetail', 'PaymentReceived', 'Payment', 'WorkStationId', 'Vendor', 'StockRelatedVendor'];
 
 
             // Clear each table
